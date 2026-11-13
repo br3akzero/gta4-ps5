@@ -1,3 +1,76 @@
+# GTA IV for PS5 — br3akzero fork
+
+> **Fork of [elripalda/gta4-ps5](https://github.com/elripalda/gta4-ps5).**
+> This fork carries the crash fix for the random mid-session crash plus a set
+> of community features from open upstream PRs. Everything below is documented
+> so you can see exactly what differs from upstream `main`.
+
+## What this fork changes vs. upstream
+
+### Crash fix — guest stack exhaustion (submitted upstream as PR [#19](https://github.com/elripalda/gta4-ps5/pull/19))
+
+Fixes the random mid-session crash (3–50 minutes of play, CE-108255-1 in the
+error history, game vanishing to the home screen, occasionally taking the
+console down).
+
+**Root cause** (verified on hardware via the ps5debug-NG kernel-log stream on
+FW 10.01): the guest main thread (`Main XThread`) runs its player-info/audio
+recursion path deeper than the XEX header's declared main-thread stack size,
+walks into its own `NoAccess` guard page and dies with SIGSEGV — leaving no
+log tail and no crash-hook output, because a thread with no stack cannot run
+any handler. Symbolized guest backtrace:
+
+```
+RunPrimaryPlayerInfoAlias -> sub_82142F90 -> sub_8222DFE0
+  -> sub_821E0500 -> sub_8299AA18
+```
+
+**Fix**: `KernelState` module launch clamps the main XThread's guest stack to
+at least 8 MiB (the same approach xenia-canary took for Minecraft X360, issue
+#742 — raise the runtime limit, don't touch game code). Also includes the
+copy-at-enqueue change for the HUD colour spill documented in upstream's
+`docs/uaf-handle-investigation/15-synthesis.md`.
+
+**Validation**: every prior build died within 3–50 minutes on the test
+console; with this change, 90+ minute clean sessions with zero kernel faults
+and zero coredumps.
+
+### Merged community PRs (from upstream, open at time of merge)
+
+| PR | Feature | Author |
+|----|---------|--------|
+| [#13](https://github.com/elripalda/gta4-ps5/pull/13) | Opt-in PS BUTTON labels for DualSense prompts | [yaasinhamidi](https://github.com/yaasinhamidi) |
+| [#14](https://github.com/elripalda/gta4-ps5/pull/14) | Replaced controller diagram (GTA IV, TLAD, TBOGT) | [yaasinhamidi](https://github.com/yaasinhamidi) |
+| [#18](https://github.com/elripalda/gta4-ps5/pull/18) | Native Return to Hub with safe same-process relaunch | [yaasinhamidi](https://github.com/yaasinhamidi) |
+
+## Credits
+
+- **[elripalda](https://github.com/elripalda)** and everyone credited in the
+  upstream README — the port itself, the hub, the recomp packaging.
+  *This fork exists because of that work.*
+- **[OZORDI](https://github.com/OZORDI)** — [Liberty Recompiled](https://github.com/OZORDI/LibertyRecomp),
+  the recompilation this port is built on.
+- **[vaduur](https://github.com/vaduur)** — [LibertyRecompAndroid](https://github.com/vaduur/LibertyRecompAndroid),
+  the fork the PS5 port starts from.
+- **[yaasinhamidi](https://github.com/yaasinhamidi)** — the three features
+  merged here from PRs #13, #14 and #18.
+- **[br3akzero](https://github.com/br3akzero)** — the stack-exhaustion crash
+  investigation and fix on this fork (root cause captured and symbolized live
+  on hardware).
+
+Upstream credits (ReXGlue, Nazky, mihawk-99, ps5-payload-dev, ThirteenAG and
+the rest) apply in full — see the upstream README.
+
+## Everything else
+
+Build instructions, game requirements and installation are unchanged from
+upstream — see the upstream README and `ps5/BUILD.md`.
+
+
+---
+
+# Upstream README below
+
 # GTA IV for PS5
 
 **Grand Theft Auto IV, The Lost and Damned and The Ballad of Gay Tony (Xbox 360) running natively on a jailbroken PS5**, in 4K with 120 Hz and VRR support, PlayStation buttons and DualSense features.
